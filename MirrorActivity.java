@@ -7,25 +7,17 @@ import android.content.pm.PackageManager;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.os.Bundle;
+import android.os.Handler;
 import android.support.v4.app.ActivityCompat;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
-import android.os.Handler;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.TextView;
 
 import org.json.JSONObject;
-
-import java.io.BufferedInputStream;
-import java.io.BufferedReader;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.URL;
 
 
 /**
@@ -57,6 +49,20 @@ public class MirrorActivity extends AppCompatActivity {
      */
     private static final int UI_ANIMATION_DELAY = 300;
     private final Handler mHideHandler = new Handler();
+    /**
+     * Touch listener to use for in-layout UI controls to delay hiding the
+     * system UI. This is to prevent the jarring behavior of controls going away
+     * while interacting with activity UI.
+     */
+    private final View.OnTouchListener mDelayHideTouchListener = new View.OnTouchListener() {
+        @Override
+        public boolean onTouch(View view, MotionEvent motionEvent) {
+            if (AUTO_HIDE) {
+                delayedHide(AUTO_HIDE_DELAY_MILLIS);
+            }
+            return false;
+        }
+    };
     private View mContentView;
     private final Runnable mHidePart2Runnable = new Runnable() {
         @SuppressLint("InlinedApi")
@@ -93,20 +99,6 @@ public class MirrorActivity extends AppCompatActivity {
         @Override
         public void run() {
             hide();
-        }
-    };
-    /**
-     * Touch listener to use for in-layout UI controls to delay hiding the
-     * system UI. This is to prevent the jarring behavior of controls going away
-     * while interacting with activity UI.
-     */
-    private final View.OnTouchListener mDelayHideTouchListener = new View.OnTouchListener() {
-        @Override
-        public boolean onTouch(View view, MotionEvent motionEvent) {
-            if (AUTO_HIDE) {
-                delayedHide(AUTO_HIDE_DELAY_MILLIS);
-            }
-            return false;
         }
     };
 
@@ -181,7 +173,6 @@ public class MirrorActivity extends AppCompatActivity {
         GetCoords(locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER));
 
 
-
         // Set up the user interaction to manually show or hide the system UI.
         mContentView.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -194,6 +185,8 @@ public class MirrorActivity extends AppCompatActivity {
         // operations to prevent the jarring behavior of controls going away
         // while interacting with the UI.
         findViewById(R.id.imageView).setOnTouchListener(mDelayHideTouchListener);
+
+
     }
 
     @Override
@@ -204,7 +197,45 @@ public class MirrorActivity extends AppCompatActivity {
         // created, to briefly hint to the user that UI controls
         // are available.
         delayedHide(100);
+    }
 
+
+
+    public  void UpdateInfo(){
+        if(WeatherGetter.retrievedObject!=null){
+            JSONObject obj = WeatherGetter.retrievedObject;
+            Log.v("REST","Retrieved "+obj);
+            try{
+                JSONObject lone = obj.getJSONObject("query");
+                JSONObject ltwo = lone.getJSONObject("results");
+                JSONObject lthree = ltwo.getJSONObject("channel");
+                JSONObject loc = lthree.getJSONObject("location");
+                UpdateLocation(loc);
+                JSONObject item = lthree.getJSONObject("item");
+                UpdateTemp(item.getJSONObject("condition"));
+                Log.v("SUCCESS","Parsed tokens i need");
+
+            }catch (Exception e){
+                Log.v("ERROR","Error parsing JSON "+e);
+            }
+        }else{
+            Log.v("ERROR", "JSON Not RECIEVED YET!");
+        }
+    }
+    private void UpdateLocation(JSONObject obj){
+        TextView tvLocation = (TextView)findViewById(R.id.tvLocation);
+        try{
+            tvLocation.setText(obj.get("city").toString());
+        }catch (Exception e){}
+    }
+
+    private void UpdateTemp(JSONObject obj){
+        TextView tvTemp = (TextView)findViewById(R.id.tvTemp);
+        try{
+        tvTemp.setText(obj.get("temp").toString()+"° F \n"+obj.get("text"));
+        }catch (Exception e){
+
+        }
     }
 
     private  void GetCoords(Location location){
@@ -218,12 +249,7 @@ public class MirrorActivity extends AppCompatActivity {
     }
 
     private void GetData(String s){
-        new WeatherGetter().execute(s);
-
-        if(WeatherGetter.retrievedObject!=null){
-            JSONObject obj = WeatherGetter.retrievedObject;
-            Log.v("REST","Retrieved "+obj);
-        }
+        new WeatherGetter().execute(s,this);
     }
 
 

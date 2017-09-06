@@ -1,7 +1,6 @@
 package com.example.sviluppo1.smartmirror_plain;
 
 import android.os.AsyncTask;
-import android.util.JsonReader;
 import android.util.Log;
 
 import org.json.JSONObject;
@@ -13,27 +12,24 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.SAXParserFactory;
-
 /**
  * Created by sviluppo1 on 04/09/2017.
  */
 
-public class WeatherGetter extends AsyncTask<String,Void,String>{
+public class WeatherGetter extends AsyncTask<Object,Void,String>{
 
 
+    public static JSONObject retrievedObject;
     private Exception exception;
 
-
-
-    protected String doInBackground(String... urls) {
+    protected String doInBackground(Object... urls) {
         try {
-            URL url = new URL(urls[0]);
+            URL url = new URL(urls[0].toString());
+            MirrorActivity activity =(MirrorActivity) urls[1];
             HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
             try{
                 InputStream in = new BufferedInputStream(urlConnection.getInputStream());
-                return WriteStream(in);
+                return WriteStream(in,activity);
             }finally {
                 urlConnection.disconnect();
             }
@@ -42,7 +38,8 @@ public class WeatherGetter extends AsyncTask<String,Void,String>{
             return "";
         }
     }
-    private String WriteStream(InputStream is){
+
+    private String WriteStream(InputStream is,MirrorActivity activity){
         String response="";
         BufferedReader br = new BufferedReader(new InputStreamReader(is));
         try {
@@ -55,12 +52,14 @@ public class WeatherGetter extends AsyncTask<String,Void,String>{
             Log.v("ERROR", "Error while reading streeam "+e);
         }
         Log.v("REST","read: "+response);
-        onPostExecute(response);
+        try {
+            retrievedObject = new JSONObject(response);
+        }catch (Exception e){
+
+        }
+        activity.UpdateInfo();
         return  response;
     }
-
-
-    public static JSONObject retrievedObject;
 
     protected void onPostExecute(String feed) {
         // TODO: check this.exception
